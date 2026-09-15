@@ -19,6 +19,7 @@ export default function CalendarioExpandido() {
     useCalendario();
 
   const [diaSelecionado, setDiaSelecionado] = useState<{ dia: number; mes: number; ano: number } | null>(null);
+  const [eventoSelecionadoId, setEventoSelecionadoId] = useState<string | undefined>(undefined);
 
   const ano = dataAtual.getFullYear();
   const mes = dataAtual.getMonth();
@@ -28,7 +29,20 @@ export default function CalendarioExpandido() {
   }
 
   function abrirDia(dia: number, mesDia: number, anoDia: number) {
+    setEventoSelecionadoId(undefined);
     setDiaSelecionado({ dia, mes: mesDia, ano: anoDia });
+  }
+
+  function abrirEvento(eventoId: string) {
+    const evento = eventos.find((e) => e.id === eventoId);
+    if (!evento) return;
+    setDiaSelecionado({ dia: evento.dia, mes: evento.mes, ano: evento.ano });
+    setEventoSelecionadoId(eventoId);
+  }
+
+  function fecharPainel() {
+    setDiaSelecionado(null);
+    setEventoSelecionadoId(undefined);
   }
 
   const inicioSemana = new Date(dataAtual);
@@ -53,7 +67,7 @@ export default function CalendarioExpandido() {
       : `${ano}`;
 
   return (
-    <div className="relative rounded-2xl p-6 shadow-sm" style={{ backgroundColor: cores.fundoCard, border: `1px solid ${cores.borda}` }}>
+    <div className="relative flex min-h-[calc(100vh-3rem)] flex-col rounded-2xl p-6 shadow-sm" style={{ backgroundColor: cores.fundoCard, border: `1px solid ${cores.borda}` }}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => mudarMes(-1)} style={{ color: cores.textoSecundario }}>‹</button>
@@ -82,62 +96,83 @@ export default function CalendarioExpandido() {
         ))}
       </div>
 
-      {visualizacao === "mes" && <MesGrid mes={mes} ano={ano} tamanho="grande" onClickDia={abrirDia} />}
+      <div className="flex flex-1 flex-col min-h-0">
+        {visualizacao === "mes" && (
+          <MesGrid mes={mes} ano={ano} tamanho="grande" onClickDia={abrirDia} onClickEvento={abrirEvento} />
+        )}
 
-      {visualizacao === "semana" && (
-        <div className="grid grid-cols-7 gap-2">
-          {diasDaSemana.map((d) => {
-            const eventosDoDia = eventos
-              .filter((e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear())
-              .sort(ordenarPorHorario);
-            return (
-              <button
-                key={d.toISOString()}
-                onClick={() => abrirDia(d.getDate(), d.getMonth(), d.getFullYear())}
-                className="flex h-64 flex-col items-start gap-1 rounded-xl p-2 text-left"
-                style={{ border: `1px solid ${cores.borda}` }}
-              >
-                <span className="text-xs font-medium capitalize" style={{ color: cores.textoSecundario }}>
-                  {d.toLocaleDateString("pt-BR", { weekday: "short" })}
-                </span>
-                <span className="text-sm font-medium" style={{ color: cores.textoPrincipal }}>{d.getDate()}</span>
-                <div className="flex w-full flex-col gap-1">
-                  {eventosDoDia.map((e) => (
-                    <span key={e.id} className="truncate rounded-md px-1.5 py-0.5 text-[10px] text-white" style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}>
-                      {e.horario ? `${e.horario} ` : ""}{e.titulo}
-                    </span>
-                  ))}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+        {visualizacao === "semana" && (
+          <div className="grid flex-1 grid-cols-7 gap-2">
+            {diasDaSemana.map((d) => {
+              const eventosDoDia = eventos
+                .filter((e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear())
+                .sort(ordenarPorHorario);
+              return (
+                <button
+                  key={d.toISOString()}
+                  onClick={() => abrirDia(d.getDate(), d.getMonth(), d.getFullYear())}
+                  className="flex h-full flex-col items-start gap-1 rounded-xl p-2 text-left"
+                  style={{ border: `1px solid ${cores.borda}` }}
+                >
+                  <span className="text-xs font-medium capitalize" style={{ color: cores.textoSecundario }}>
+                    {d.toLocaleDateString("pt-BR", { weekday: "short" })}
+                  </span>
+                  <span className="text-sm font-medium" style={{ color: cores.textoPrincipal }}>{d.getDate()}</span>
+                  <div className="flex w-full flex-col gap-1">
+                    {eventosDoDia.map((e) => (
+                      <span
+                        key={e.id}
+                        role="button"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          abrirEvento(e.id);
+                        }}
+                        className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] text-white hover:opacity-80"
+                        style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}
+                      >
+                        {e.horario ? `${e.horario} ` : ""}{e.titulo}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-      {visualizacao === "semestre" && (
-        <div className="grid grid-cols-3 gap-4">
-          {mesesDoSemestre.map((m) => (
-            <MesGrid key={m} mes={m} ano={ano} tamanho="pequeno" onClickDia={abrirDia} />
-          ))}
-        </div>
-      )}
+        {visualizacao === "semestre" && (
+          <div className="grid grid-cols-3 gap-4">
+            {mesesDoSemestre.map((m) => (
+              <MesGrid key={m} mes={m} ano={ano} tamanho="pequeno" onClickDia={abrirDia} />
+            ))}
+          </div>
+        )}
 
-      {visualizacao === "ano" && (
-        <div className="grid grid-cols-4 gap-4">
-          {mesesDoAno.map((m) => (
-            <MesGrid key={m} mes={m} ano={ano} tamanho="pequeno" onClickDia={abrirDia} />
-          ))}
-        </div>
-      )}
+        {visualizacao === "ano" && (
+          <div className="grid grid-cols-4 gap-4">
+            {mesesDoAno.map((m) => (
+              <MesGrid key={m} mes={m} ano={ano} tamanho="pequeno" onClickDia={abrirDia} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {diaSelecionado && (
-        <div className="absolute right-6 top-16 z-10 w-72">
-          <PainelNovoEvento
-            dia={diaSelecionado.dia}
-            mes={diaSelecionado.mes}
-            ano={diaSelecionado.ano}
-            onFechar={() => setDiaSelecionado(null)}
-          />
+        <div
+          className="fixed inset-0 z-20 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+          onClick={fecharPainel}
+        >
+          {/* stopPropagation: clicar dentro do painel não deve fechar o overlay */}
+          <div className="w-80" onClick={(e) => e.stopPropagation()}>
+            <PainelNovoEvento
+              dia={diaSelecionado.dia}
+              mes={diaSelecionado.mes}
+              ano={diaSelecionado.ano}
+              eventoInicialId={eventoSelecionadoId}
+              onFechar={fecharPainel}
+            />
+          </div>
         </div>
       )}
     </div>

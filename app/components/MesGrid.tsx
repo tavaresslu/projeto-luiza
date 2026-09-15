@@ -10,9 +10,10 @@ type Props = {
   tamanho: "grande" | "mini" | "pequeno";
   mostrarTitulo?: boolean;
   onClickDia: (dia: number, mes: number, ano: number) => void;
+  onClickEvento?: (eventoId: string) => void;
 };
 
-export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onClickDia }: Props) {
+export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onClickDia, onClickEvento }: Props) {
   const { eventos, etiquetas } = useCalendario();
 
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
@@ -32,39 +33,47 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
       .sort(ordenarPorHorario);
 
     if (tamanho === "grande") {
+      const temMais = eventosDoDia.length > 2;
       celulas.push(
         <button
           key={dia}
           onClick={() => onClickDia(dia, mes, ano)}
-          className="flex h-24 flex-col items-start gap-1 rounded-xl p-2 text-left"
-          style={{ border: `1px solid ${cores.borda}` }}
+          className="flex min-h-24 flex-col items-start gap-1 rounded-xl p-2 text-left"
+          style={{ border: `1px solid ${cores.borda}`, height: temMais ? "auto" : undefined }}
         >
           <span className="text-xs font-medium" style={{ color: cores.textoPrincipal }}>{dia}</span>
           <div className="flex w-full flex-col gap-1">
-            {eventosDoDia.slice(0, 2).map((e) => (
-              <span key={e.id} className="truncate rounded-md px-1.5 py-0.5 text-[10px] text-white" style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}>
+            {eventosDoDia.map((e) => (
+              <span
+                key={e.id}
+                role="button"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onClickEvento?.(e.id);
+                }}
+                className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] text-white hover:opacity-80"
+                style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}
+              >
                 {e.horario ? `${e.horario} ` : ""}{e.titulo}
               </span>
             ))}
-            {eventosDoDia.length > 2 && (
-              <span className="text-[10px]" style={{ color: cores.textoSecundario }}>+{eventosDoDia.length - 2}</span>
-            )}
           </div>
         </button>
       );
     } else {
-      const tamanhoCirculo = tamanho === "mini" ? "h-7 w-7 text-xs" : "h-5 w-5 text-[9px]";
+      const tamanhoCirculo = tamanho === "mini" ? "h-7 w-7 text-xs" : "h-7 w-7 text-[11px]";
+      const temEvento = eventosDoDia.length > 0;
       celulas.push(
         <button
           key={dia}
           onClick={() => onClickDia(dia, mes, ano)}
-          className={`relative flex ${tamanhoCirculo} items-center justify-center rounded-full hover:bg-black/5`}
-          style={{ color: cores.textoPrincipal }}
+          className={`relative flex ${tamanhoCirculo} items-center justify-center rounded-full`}
+          style={{
+            color: temEvento ? "#FFFFFF" : cores.textoPrincipal,
+            backgroundColor: temEvento ? corDaEtiqueta(eventosDoDia[0].etiquetaId) : "transparent",
+          }}
         >
           {dia}
-          {eventosDoDia.length > 0 && (
-            <span className="absolute bottom-0 h-1 w-1 rounded-full" style={{ backgroundColor: corDaEtiqueta(eventosDoDia[0].etiquetaId) }} />
-          )}
         </button>
       );
     }
