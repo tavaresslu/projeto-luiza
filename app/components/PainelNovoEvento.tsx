@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { cores } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
 import { Etiqueta } from "../types";
+import SeletorCor from "./SeletorCor";
 
 type Props = {
   dia: number;
@@ -166,7 +167,7 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
             className="w-28 rounded-lg px-2 py-1 text-xs outline-none"
             style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
           />
-          <input type="color" value={corEtiquetaNova} onChange={(e) => setCorEtiquetaNova(e.target.value)} className="h-6 w-6 cursor-pointer rounded" />
+          <SeletorCor corSelecionada={corEtiquetaNova} onSelecionar={setCorEtiquetaNova} />
           <button onClick={salvarEtiqueta} className="text-xs" style={{ color: cores.textoPrincipal }}>
             {editandoEtiquetaId ? "Salvar" : "Adicionar"}
           </button>

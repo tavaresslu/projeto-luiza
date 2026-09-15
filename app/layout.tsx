@@ -1,4 +1,5 @@
 import { CalendarioProvider } from "./context/CalendarioContext";
+import { PastaProvider } from "./context/PastaContext";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <CalendarioProvider>{children}</CalendarioProvider>
+        <CalendarioProvider>
+          <PastaProvider>{children}</PastaProvider>
+        </CalendarioProvider>
       </body>
     </html>
   );
