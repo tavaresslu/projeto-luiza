@@ -14,7 +14,9 @@ export default function Home() {
     <div className="flex" style={{ backgroundColor: cores.fundo }}>
       <Sidebar />
       <main className="flex-1 p-8">
-        {pastaSelecionada ? (
+        {expandido ? (
+          <CalendarioExpandido />
+        ) : pastaSelecionada ? (
           <div>
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -38,8 +40,6 @@ export default function Home() {
               Conteúdo da pasta em breve...
             </p>
           </div>
-        ) : expandido ? (
-          <CalendarioExpandido />
         ) : (
           <h1 className="text-lg font-medium" style={{ color: cores.textoPrincipal }}>
             Área principal

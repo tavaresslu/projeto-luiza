@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cores } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
 import { ordenarPorHorario } from "../utils";
+import { Evento } from "../types";
 import MesGrid from "./MesGrid";
 import PainelNovoEvento from "./PainelNovoEvento";
 
@@ -13,6 +14,83 @@ const opcoesVisualizacao = [
   { id: "semestre", label: "Semestre" },
   { id: "ano", label: "Ano" },
 ] as const;
+
+const HORA_INICIO = 5;
+const HORA_FIM = 23;
+const ALTURA_HORA = 48;
+const HORAS_EXIBIDAS = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, i) => HORA_INICIO + i);
+
+function minutosDesdeInicioDoDia(horario: string) {
+  const [h, m] = horario.split(":").map(Number);
+  return (h - HORA_INICIO) * 60 + m;
+}
+
+function posicaoDoEvento(evento: Evento) {
+  if (!evento.horario) return null;
+  const inicioMin = minutosDesdeInicioDoDia(evento.horario);
+  const fimMin = evento.horarioFim ? minutosDesdeInicioDoDia(evento.horarioFim) : inicioMin + 60;
+  const top = Math.max(0, (inicioMin / 60) * ALTURA_HORA);
+  const altura = Math.max(22, ((fimMin - inicioMin) / 60) * ALTURA_HORA);
+  return { top, altura };
+}
+
+// Descobre quais compromissos se sobrepõem no horário e reparte a largura da
+// coluna entre eles, em vez de deixar um em cima do outro escondendo o de baixo
+type EventoComLayout = { evento: Evento; coluna: number; totalColunas: number };
+
+function calcularLayoutSemanal(eventosOrdenados: Evento[]): EventoComLayout[] {
+  type Item = { evento: Evento; inicio: number; fim: number };
+  const itens: Item[] = eventosOrdenados.map((e) => {
+    const inicio = minutosDesdeInicioDoDia(e.horario!);
+    const fimBruto = e.horarioFim ? minutosDesdeInicioDoDia(e.horarioFim) : inicio + 60;
+    return { evento: e, inicio, fim: Math.max(fimBruto, inicio + 1) };
+  });
+
+  const resultado: EventoComLayout[] = [];
+  let clusterAtual: Item[] = [];
+  let fimClusterAtual = -Infinity;
+
+  function processarCluster(cluster: Item[]) {
+    const fimDasColunas: number[] = [];
+    const colunaPorItem = new Map<Item, number>();
+
+    for (const item of cluster) {
+      let colunaEncontrada = -1;
+      for (let c = 0; c < fimDasColunas.length; c++) {
+        if (fimDasColunas[c] <= item.inicio) {
+          colunaEncontrada = c;
+          break;
+        }
+      }
+      if (colunaEncontrada === -1) {
+        colunaEncontrada = fimDasColunas.length;
+        fimDasColunas.push(item.fim);
+      } else {
+        fimDasColunas[colunaEncontrada] = item.fim;
+      }
+      colunaPorItem.set(item, colunaEncontrada);
+    }
+
+    const totalColunas = fimDasColunas.length;
+    for (const item of cluster) {
+      resultado.push({ evento: item.evento, coluna: colunaPorItem.get(item)!, totalColunas });
+    }
+  }
+
+  for (const item of itens) {
+    if (clusterAtual.length === 0 || item.inicio < fimClusterAtual) {
+      clusterAtual.push(item);
+      fimClusterAtual = Math.max(fimClusterAtual, item.fim);
+    } else {
+      processarCluster(clusterAtual);
+      clusterAtual = [item];
+      fimClusterAtual = item.fim;
+    }
+  }
+  if (clusterAtual.length > 0) processarCluster(clusterAtual);
+
+  return resultado;
+}
 
 export default function CalendarioExpandido() {
   const { dataAtual, mudarMes, eventos, etiquetas, visualizacao, setVisualizacao, setExpandido } =
@@ -102,41 +180,109 @@ export default function CalendarioExpandido() {
         )}
 
         {visualizacao === "semana" && (
-          <div className="grid flex-1 grid-cols-7 gap-2">
-            {diasDaSemana.map((d) => {
-              const eventosDoDia = eventos
-                .filter((e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear())
-                .sort(ordenarPorHorario);
-              return (
-                <button
-                  key={d.toISOString()}
-                  onClick={() => abrirDia(d.getDate(), d.getMonth(), d.getFullYear())}
-                  className="flex h-full flex-col items-start gap-1 rounded-xl p-2 text-left"
-                  style={{ border: `1px solid ${cores.borda}` }}
-                >
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1">
+              <div />
+              {diasDaSemana.map((d) => (
+                <div key={`cab-${d.toISOString()}`} className="pb-1 text-center">
                   <span className="text-xs font-medium capitalize" style={{ color: cores.textoSecundario }}>
                     {d.toLocaleDateString("pt-BR", { weekday: "short" })}
                   </span>
-                  <span className="text-sm font-medium" style={{ color: cores.textoPrincipal }}>{d.getDate()}</span>
-                  <div className="flex w-full flex-col gap-1">
-                    {eventosDoDia.map((e) => (
-                      <span
+                  <div className="text-sm font-medium" style={{ color: cores.textoPrincipal }}>{d.getDate()}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1">
+              <div />
+              {diasDaSemana.map((d) => {
+                const semHorario = eventos.filter(
+                  (e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear() && !e.horario
+                );
+                return (
+                  <div key={`semhora-${d.toISOString()}`} className="flex flex-col gap-1 px-0.5 pb-1">
+                    {semHorario.map((e) => (
+                      <button
                         key={e.id}
-                        role="button"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          abrirEvento(e.id);
-                        }}
+                        onClick={() => abrirEvento(e.id)}
                         className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] text-white hover:opacity-80"
                         style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}
                       >
-                        {e.horario ? `${e.horario} ` : ""}{e.titulo}
-                      </span>
+                        {e.titulo}
+                      </button>
                     ))}
                   </div>
-                </button>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1">
+              <div>
+                {HORAS_EXIBIDAS.map((h) => (
+                  <div key={h} style={{ height: ALTURA_HORA }} className="relative -translate-y-2 text-right pr-2">
+                    <span className="text-[10px]" style={{ color: cores.textoSecundario }}>
+                      {String(h).padStart(2, "0")}:00
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {diasDaSemana.map((d) => {
+                const eventosDoDia = eventos
+                  .filter((e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear() && e.horario)
+                  .sort(ordenarPorHorario);
+
+                const layout = calcularLayoutSemanal(eventosDoDia);
+
+                return (
+                  <button
+                    key={d.toISOString()}
+                    onClick={() => abrirDia(d.getDate(), d.getMonth(), d.getFullYear())}
+                    className="relative"
+                    style={{
+                      height: HORAS_EXIBIDAS.length * ALTURA_HORA,
+                      border: `1px solid ${cores.borda}`,
+                      borderRadius: 8,
+                    }}
+                  >
+                    {HORAS_EXIBIDAS.map((h, i) => (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0"
+                        style={{ top: i * ALTURA_HORA, borderTop: `1px solid ${cores.borda}`, opacity: 0.5 }}
+                      />
+                    ))}
+
+                    {layout.map(({ evento: e, coluna, totalColunas }) => {
+                      const pos = posicaoDoEvento(e);
+                      if (!pos) return null;
+                      const largura = 100 / totalColunas;
+                      const esquerda = coluna * largura;
+                      return (
+                        <span
+                          key={e.id}
+                          role="button"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            abrirEvento(e.id);
+                          }}
+                          className="absolute overflow-hidden truncate rounded-md px-1 py-0.5 text-left text-[10px] text-white hover:opacity-80"
+                          style={{
+                            top: pos.top,
+                            height: pos.altura,
+                            left: `calc(${esquerda}% + 1px)`,
+                            width: `calc(${largura}% - 2px)`,
+                            backgroundColor: corDaEtiqueta(e.etiquetaId),
+                          }}
+                        >
+                          {e.horario} {e.titulo}
+                        </span>
+                      );
+                    })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -163,7 +309,6 @@ export default function CalendarioExpandido() {
           style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
           onClick={fecharPainel}
         >
-          {/* stopPropagation: clicar dentro do painel não deve fechar o overlay */}
           <div className="w-80" onClick={(e) => e.stopPropagation()}>
             <PainelNovoEvento
               dia={diaSelecionado.dia}

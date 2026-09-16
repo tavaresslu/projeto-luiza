@@ -14,6 +14,23 @@ type Props = {
   onFechar: () => void;
 };
 
+// Deixa só dígitos e formata "HHMM" -> "HH:MM" conforme a pessoa digita,
+// já limitando hora a 23 e minuto a 59
+function formatarHorarioDigitado(valorAntigo: string, valorNovo: string) {
+  let digitos = valorNovo.replace(/\D/g, "").slice(0, 4);
+
+  if (digitos.length >= 2) {
+    const hh = Math.min(23, parseInt(digitos.slice(0, 2), 10));
+    digitos = String(hh).padStart(2, "0") + digitos.slice(2);
+  }
+  if (digitos.length === 4) {
+    const mm = Math.min(59, parseInt(digitos.slice(2, 4), 10));
+    digitos = digitos.slice(0, 2) + String(mm).padStart(2, "0");
+  }
+
+  return digitos.length > 2 ? `${digitos.slice(0, 2)}:${digitos.slice(2)}` : digitos;
+}
+
 export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFechar }: Props) {
   const { eventos, etiquetas, adicionarEvento, editarEvento, removerEvento, adicionarEtiqueta, editarEtiqueta, removerEtiqueta } =
     useCalendario();
@@ -21,6 +38,7 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
   const [editandoEventoId, setEditandoEventoId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [horario, setHorario] = useState("");
+  const [horarioFim, setHorarioFim] = useState("");
   const [etiquetaSelecionada, setEtiquetaSelecionada] = useState(etiquetas[0]?.id ?? "");
   const [formEtiquetaAberto, setFormEtiquetaAberto] = useState(false);
   const [editandoEtiquetaId, setEditandoEtiquetaId] = useState<string | null>(null);
@@ -33,10 +51,10 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
     setEditandoEventoId(id);
     setTitulo(evento.titulo);
     setHorario(evento.horario ?? "");
+    setHorarioFim(evento.horarioFim ?? "");
     setEtiquetaSelecionada(evento.etiquetaId);
   }
 
-  // Se o painel foi aberto clicando direto num evento (na grade), já entra em modo edição
   useEffect(() => {
     if (eventoInicialId) {
       iniciarEdicaoEvento(eventoInicialId);
@@ -47,6 +65,7 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
     setEditandoEventoId(null);
     setTitulo("");
     setHorario("");
+    setHorarioFim("");
     setEtiquetaSelecionada(etiquetas[0]?.id ?? "");
   }
 
@@ -93,8 +112,9 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
         titulo: titulo.trim(),
         etiquetaId: etiquetaSelecionada,
         horario: horario || undefined,
+        horarioFim: horario ? (horarioFim || undefined) : undefined,
       });
-      cancelarEdicaoEvento();
+      onFechar();
     } else {
       adicionarEvento({
         dia,
@@ -103,9 +123,11 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
         titulo: titulo.trim(),
         etiquetaId: etiquetaSelecionada,
         horario: horario || undefined,
+        horarioFim: horario ? (horarioFim || undefined) : undefined,
       });
       setTitulo("");
       setHorario("");
+      setHorarioFim("");
     }
   }
 
@@ -115,22 +137,43 @@ export default function PainelNovoEvento({ dia, mes, ano, eventoInicialId, onFec
         {editandoEventoId ? `Editar compromisso — ${dia}/${mes + 1}` : `Novo compromisso — ${dia}/${mes + 1}`}
       </p>
 
-      <div className="mb-2 flex gap-2">
-        <input
-          autoFocus
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Título"
-          className="flex-1 rounded-lg px-2 py-1 text-sm outline-none"
-          style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
-        />
-        <input
-          type="time"
-          value={horario}
-          onChange={(e) => setHorario(e.target.value)}
-          className="rounded-lg px-2 py-1 text-sm outline-none"
-          style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
-        />
+      <input
+        autoFocus
+        value={titulo}
+        onChange={(e) => setTitulo(e.target.value)}
+        placeholder="Título"
+        className="mb-2 w-full rounded-lg px-2 py-1 text-sm outline-none"
+        style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
+      />
+
+      <div className="mb-2 flex items-center gap-2">
+        <div className="flex-1">
+          <p className="mb-1 text-[11px]" style={{ color: cores.textoSecundario }}>Início (opcional)</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={5}
+            value={horario}
+            onChange={(e) => setHorario(formatarHorarioDigitado(horario, e.target.value))}
+            placeholder="HH:MM"
+            className="w-full rounded-lg px-2 py-1 text-sm outline-none"
+            style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
+          />
+        </div>
+        <div className="flex-1">
+          <p className="mb-1 text-[11px]" style={{ color: cores.textoSecundario }}>Término (opcional)</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={5}
+            value={horarioFim}
+            onChange={(e) => setHorarioFim(formatarHorarioDigitado(horarioFim, e.target.value))}
+            disabled={!horario}
+            placeholder="HH:MM"
+            className="w-full rounded-lg px-2 py-1 text-sm outline-none disabled:opacity-40"
+            style={{ border: `1px solid ${cores.borda}`, color: cores.textoPrincipal }}
+          />
+        </div>
       </div>
 
       <p className="mb-1 text-xs" style={{ color: cores.textoSecundario }}>Etiqueta</p>

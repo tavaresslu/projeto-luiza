@@ -12,4 +12,5 @@ export type Evento = {
   titulo: string;
   etiquetaId: string;
   horario?: string;
+  horarioFim?: string;
 };

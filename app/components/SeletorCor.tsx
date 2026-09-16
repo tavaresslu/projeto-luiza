@@ -38,7 +38,6 @@ function hsvToHex(h: number, s: number, v: number): string {
 }
 
 export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
-  // hue/saturation/brightness só existem pra desenhar o quadradão de cor customizada
   const [hue, setHue] = useState(140);
   const [saturation, setSaturation] = useState(25);
   const [brightness, setBrightness] = useState(75);
@@ -49,7 +48,6 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
   const draggingSquare = useRef(false);
   const draggingHue = useRef(false);
 
-  // toda vez que hue/saturation/brightness mudam, calcula o hex e avisa o formulário
   useEffect(() => {
     if (mostrarCustom) {
       onSelecionar(hsvToHex(hue, saturation, brightness));
@@ -99,7 +97,7 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
   const pureHueHex = hsvToHex(hue, 100, 100);
 
   return (
-    <div>
+    <div style={{ width: "100%" }}>
       {/* Paleta de cores prontas — igual já era */}
       <div className="flex flex-wrap gap-1 items-center">
         {paletaCores.map((cor) => (
@@ -122,7 +120,6 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
           />
         ))}
 
-        {/* Botão extra: abre o seletor de cor customizada */}
         <button
           type="button"
           onClick={() => setMostrarCustom((v) => !v)}
@@ -138,9 +135,10 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
         </button>
       </div>
 
-      {/* Quadradão só aparece quando clica no "+" */}
+      {/* Quadradão agora ocupa 100% da largura do espaço que tiver disponível, */}
+      {/* em vez de um tamanho fixo — assim nunca estoura pra fora da caixa */}
       {mostrarCustom && (
-        <div style={{ width: 220, marginTop: 10 }}>
+        <div style={{ width: "100%", maxWidth: 220, marginTop: 10 }}>
           <div
             ref={squareRef}
             onMouseDown={(e) => {
@@ -157,6 +155,7 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
               height: 150,
               borderRadius: 8,
               cursor: "crosshair",
+              touchAction: "none",
               backgroundColor: pureHueHex,
               backgroundImage: `linear-gradient(to top, #000, rgba(0,0,0,0)),
                                  linear-gradient(to right, #fff, rgba(255,255,255,0))`,
@@ -194,6 +193,7 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
               height: 12,
               borderRadius: 6,
               cursor: "pointer",
+              touchAction: "none",
               marginTop: 8,
               background:
                 "linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)",
