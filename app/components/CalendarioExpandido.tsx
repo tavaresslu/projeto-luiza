@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cores } from "../theme";
+import { cores, hexParaRgba, hexEscurecer } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
 import { ordenarPorHorario } from "../utils";
 import { Evento } from "../types";
@@ -92,6 +92,12 @@ function calcularLayoutSemanal(eventosOrdenados: Evento[]): EventoComLayout[] {
   return resultado;
 }
 
+// Domingo = 0, sábado = 6 — mesma convenção do JS Date
+function ehFimDeSemana(d: Date) {
+  const dia = d.getDay();
+  return dia === 0 || dia === 6;
+}
+
 export default function CalendarioExpandido() {
   const { dataAtual, mudarMes, eventos, etiquetas, visualizacao, setVisualizacao, setExpandido } =
     useCalendario();
@@ -104,6 +110,16 @@ export default function CalendarioExpandido() {
 
   function corDaEtiqueta(id: string) {
     return etiquetas.find((e) => e.id === id)?.cor ?? cores.textoSecundario;
+  }
+
+  // Fundo claro/transparente da cor da etiqueta, pra pintar a área do bloco
+  function fundoDaEtiqueta(id: string) {
+    return hexParaRgba(corDaEtiqueta(id), 0.16);
+  }
+
+  // Versão escurecida da mesma cor, pro texto ficar legível em cima do fundo claro
+  function textoDaEtiqueta(id: string) {
+    return hexEscurecer(corDaEtiqueta(id), 0.35);
   }
 
   function abrirDia(dia: number, mesDia: number, anoDia: number) {
@@ -184,7 +200,11 @@ export default function CalendarioExpandido() {
             <div className="grid grid-cols-[56px_repeat(7,1fr)] gap-1">
               <div />
               {diasDaSemana.map((d) => (
-                <div key={`cab-${d.toISOString()}`} className="pb-1 text-center">
+                <div
+                  key={`cab-${d.toISOString()}`}
+                  className="rounded-t-lg pb-1 text-center"
+                  style={{ backgroundColor: ehFimDeSemana(d) ? cores.fundoFimDeSemana : "transparent" }}
+                >
                   <span className="text-xs font-medium capitalize" style={{ color: cores.textoSecundario }}>
                     {d.toLocaleDateString("pt-BR", { weekday: "short" })}
                   </span>
@@ -200,13 +220,17 @@ export default function CalendarioExpandido() {
                   (e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear() && !e.horario
                 );
                 return (
-                  <div key={`semhora-${d.toISOString()}`} className="flex flex-col gap-1 px-0.5 pb-1">
+                  <div
+                    key={`semhora-${d.toISOString()}`}
+                    className="flex flex-col gap-1 px-0.5 pb-1"
+                    style={{ backgroundColor: ehFimDeSemana(d) ? cores.fundoFimDeSemana : "transparent" }}
+                  >
                     {semHorario.map((e) => (
                       <button
                         key={e.id}
                         onClick={() => abrirEvento(e.id)}
-                        className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] text-white hover:opacity-80"
-                        style={{ backgroundColor: corDaEtiqueta(e.etiquetaId) }}
+                        className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-bold hover:opacity-80"
+                        style={{ backgroundColor: fundoDaEtiqueta(e.etiquetaId), color: textoDaEtiqueta(e.etiquetaId) }}
                       >
                         {e.titulo}
                       </button>
@@ -243,6 +267,7 @@ export default function CalendarioExpandido() {
                       height: HORAS_EXIBIDAS.length * ALTURA_HORA,
                       border: `1px solid ${cores.borda}`,
                       borderRadius: 8,
+                      backgroundColor: ehFimDeSemana(d) ? cores.fundoFimDeSemana : "transparent",
                     }}
                   >
                     {HORAS_EXIBIDAS.map((h, i) => (
@@ -266,13 +291,15 @@ export default function CalendarioExpandido() {
                             ev.stopPropagation();
                             abrirEvento(e.id);
                           }}
-                          className="absolute overflow-hidden truncate rounded-md px-1 py-0.5 text-left text-[10px] text-white hover:opacity-80"
+                          className="absolute overflow-hidden truncate rounded-md px-1 py-0.5 text-left text-[10px] font-bold hover:opacity-80"
                           style={{
                             top: pos.top,
                             height: pos.altura,
                             left: `calc(${esquerda}% + 1px)`,
                             width: `calc(${largura}% - 2px)`,
-                            backgroundColor: corDaEtiqueta(e.etiquetaId),
+                            backgroundColor: fundoDaEtiqueta(e.etiquetaId),
+                            color: textoDaEtiqueta(e.etiquetaId),
+                            borderLeft: `2px solid ${corDaEtiqueta(e.etiquetaId)}`,
                           }}
                         >
                           {e.horario} {e.titulo}

@@ -1,7 +1,9 @@
+"use client";
+
 import { useState, DragEvent } from "react";
 import MiniCalendar from "./MiniCalendar";
 import SeletorCor from "./SeletorCor";
-import { cores } from "../theme";
+import { cores, hexParaRgba } from "../theme";
 import { paletaCores } from "./SeletorCor";
 import { usePasta } from "../context/PastaContext";
 
@@ -126,13 +128,13 @@ export default function Sidebar() {
                 onDragEnd={handleDragEnd}
                 className="relative flex items-center gap-2 rounded-xl px-3 py-2"
                 style={{
-                  backgroundColor: ativa ? cores.borda : "transparent",
+                  backgroundColor: ativa ? hexParaRgba(pasta.cor, 0.14) : "transparent",
                   cursor: "grab",
                   opacity: indiceArrastado === indice ? 0.5 : 1,
                 }}
               >
                 <span
-                  className="h-2 w-2 flex-shrink-0 rounded-full"
+                  className="h-3 w-3 flex-shrink-0 rounded-full"
                   style={{ backgroundColor: pasta.cor }}
                 />
 

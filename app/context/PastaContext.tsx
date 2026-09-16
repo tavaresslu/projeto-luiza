@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { paletaCores } from "../components/SeletorCor";
 
 type Pasta = {
@@ -56,41 +56,37 @@ export function PastaProvider({ children }: { children: ReactNode }) {
 
   const pastaSelecionada = pastas.find((p) => p.id === selecionadaId) ?? null;
 
-  function selecionarPasta(id: string) {
+  const selecionarPasta = useCallback((id: string) => {
     setSelecionadaId(id);
-  }
+  }, []);
 
-  function fecharPasta() {
+  const fecharPasta = useCallback(() => {
     setSelecionadaId(null);
-  }
+  }, []);
 
-  function criarPasta(nome: string, cor?: string) {
-    const novaPasta: Pasta = {
-      id: `${Date.now()}`,
-      nome,
-      cor: cor ?? paletaCores[pastas.length % paletaCores.length],
-    };
-    setPastas([...pastas, novaPasta]);
-  }
+  const criarPasta = useCallback((nome: string, cor?: string) => {
+    setPastas((atual) => [
+      ...atual,
+      { id: `${Date.now()}`, nome, cor: cor ?? paletaCores[atual.length % paletaCores.length] },
+    ]);
+  }, []);
 
-  function renomearPasta(id: string, novoNome: string) {
-    setPastas(pastas.map((p) => (p.id === id ? { ...p, nome: novoNome } : p)));
-  }
+  const renomearPasta = useCallback((id: string, novoNome: string) => {
+    setPastas((atual) => atual.map((p) => (p.id === id ? { ...p, nome: novoNome } : p)));
+  }, []);
 
-  function mudarCorPasta(id: string, novaCor: string) {
-    setPastas(pastas.map((p) => (p.id === id ? { ...p, cor: novaCor } : p)));
-  }
+  const mudarCorPasta = useCallback((id: string, novaCor: string) => {
+    setPastas((atual) => atual.map((p) => (p.id === id ? { ...p, cor: novaCor } : p)));
+  }, []);
 
-  function excluirPasta(id: string) {
-    setPastas(pastas.filter((p) => p.id !== id));
-    if (selecionadaId === id) {
-      setSelecionadaId(null);
-    }
-  }
+  const excluirPasta = useCallback((id: string) => {
+    setPastas((atual) => atual.filter((p) => p.id !== id));
+    setSelecionadaId((atualId) => (atualId === id ? null : atualId));
+  }, []);
 
-  function reordenarPastas(novaOrdem: Pasta[]) {
+  const reordenarPastas = useCallback((novaOrdem: Pasta[]) => {
     setPastas(novaOrdem);
-  }
+  }, []);
 
   return (
     <PastaContext.Provider
