@@ -3,16 +3,45 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cores } from "../theme";
 
-export const paletaCores = [
-  "#F4A261",
-  "#2A9D8F",
-  "#E76F51",
-  "#8D99AE",
-  "#9C89B8",
-  "#8FBFA0",
-  "#E9C46A",
-  "#6B9AC4",
+// Cores fixas que sempre aparecem disponíveis (tiradas do Apple Calendar)
+const CORES_FIXAS = [
+  "#F1F5F0",
+  "#FFCC68",
+  "#80D2F9",
+  "#FB74B9",
+  "#D578F6",
+  "#FD8206",
+  "#90E696",
+  "#F62B2D",
 ];
+
+// Mantido pra compatibilidade com quem importa "paletaCores" (ex: Sidebar.tsx, PastaContext.tsx)
+export const paletaCores = CORES_FIXAS;
+
+const CHAVE_LOCALSTORAGE = "cores-customizadas-usuario";
+
+// --- Funções de armazenamento isoladas aqui ---
+// Quando migrar pra API/banco no futuro, só precisa trocar o conteúdo
+// dessas funções (o resto do componente não muda nada).
+function buscarCoresCustomizadas(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const salvo = window.localStorage.getItem(CHAVE_LOCALSTORAGE);
+    return salvo ? JSON.parse(salvo) : [];
+  } catch {
+    return [];
+  }
+}
+
+function salvarCoresCustomizadas(cores: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CHAVE_LOCALSTORAGE, JSON.stringify(cores));
+  } catch {
+    // se der erro (ex: localStorage cheio/bloqueado), só ignora
+  }
+}
+// --- Fim das funções de armazenamento ---
 
 type Props = {
   corSelecionada: string;
@@ -42,6 +71,12 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
   const [saturation, setSaturation] = useState(25);
   const [brightness, setBrightness] = useState(75);
   const [mostrarCustom, setMostrarCustom] = useState(false);
+  const [coresCustomizadas, setCoresCustomizadas] = useState<string[]>([]);
+
+  // Carrega as cores customizadas salvas assim que o componente monta
+  useEffect(() => {
+    setCoresCustomizadas(buscarCoresCustomizadas());
+  }, []);
 
   const squareRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
@@ -79,6 +114,12 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
       if (draggingHue.current) updateFromHue(x);
     };
     const onUp = () => {
+      // Ao soltar o arraste dentro do seletor customizado, salva a cor
+      // escolhida na lista de cores customizadas do usuário (se ainda não existir)
+      if (draggingSquare.current || draggingHue.current) {
+        const corFinal = hsvToHex(hue, saturation, brightness);
+        adicionarCorCustomizada(corFinal);
+      }
       draggingSquare.current = false;
       draggingHue.current = false;
     };
@@ -92,15 +133,70 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onUp);
     };
-  }, [updateFromSquare, updateFromHue]);
+  }, [updateFromSquare, updateFromHue, hue, saturation, brightness]);
+
+  function adicionarCorCustomizada(cor: string) {
+    setCoresCustomizadas((atual) => {
+      if (atual.includes(cor) || CORES_FIXAS.includes(cor)) return atual;
+      const nova = [...atual, cor];
+      salvarCoresCustomizadas(nova);
+      return nova;
+    });
+  }
+
+  function removerCorCustomizada(cor: string) {
+    setCoresCustomizadas((atual) => {
+      const nova = atual.filter((c) => c !== cor);
+      salvarCoresCustomizadas(nova);
+      return nova;
+    });
+    // se a cor removida era a que estava selecionada, volta pra primeira cor fixa
+    if (corSelecionada === cor) {
+      onSelecionar(CORES_FIXAS[0]);
+    }
+  }
 
   const pureHueHex = hsvToHex(hue, 100, 100);
 
   return (
     <div style={{ width: "100%" }}>
-      {/* Paleta de cores prontas — igual já era */}
-      <div className="flex flex-wrap gap-1 items-center">
-        {paletaCores.map((cor) => (
+      <div className="flex flex-wrap gap-2 items-center">
+        {/* Cores criadas pelo usuário — com "x" pra excluir ao passar o mouse */}
+        {coresCustomizadas.map((cor) => (
+          <div key={cor} className="group relative h-5 w-5">
+            <button
+              type="button"
+              onClick={() => {
+                setMostrarCustom(false);
+                onSelecionar(cor);
+              }}
+              className="h-5 w-5 rounded-full"
+              style={{
+                backgroundColor: cor,
+                outline:
+                  !mostrarCustom && cor === corSelecionada
+                    ? `2px solid ${cores.textoPrincipal}`
+                    : "none",
+                outlineOffset: "2px",
+              }}
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                removerCorCustomizada(cor);
+              }}
+              title="Excluir cor"
+              className="absolute -right-1 -top-1 hidden h-3 w-3 items-center justify-center rounded-full text-[8px] leading-none text-white group-hover:flex"
+              style={{ backgroundColor: "#C97B7B" }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        {/* Cores fixas do Apple Calendar — sempre disponíveis, sem opção de excluir */}
+        {CORES_FIXAS.map((cor) => (
           <button
             key={cor}
             type="button"
@@ -135,8 +231,7 @@ export default function SeletorCor({ corSelecionada, onSelecionar }: Props) {
         </button>
       </div>
 
-      {/* Quadradão agora ocupa 100% da largura do espaço que tiver disponível, */}
-      {/* em vez de um tamanho fixo — assim nunca estoura pra fora da caixa */}
+      {/* Quadradão ocupa 100% da largura do espaço disponível */}
       {mostrarCustom && (
         <div style={{ width: "100%", maxWidth: 220, marginTop: 10 }}>
           <div

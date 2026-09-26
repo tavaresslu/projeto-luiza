@@ -3,16 +3,30 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { paletaCores } from "../components/SeletorCor";
 
+type ItemChecklist = {
+  id: string;
+  texto: string;
+  concluido: boolean;
+};
+
+type Subpasta = {
+  id: string;
+  nome: string;
+};
+
 type Pasta = {
   id: string;
   nome: string;
   cor: string;
+  tituloChecklist: string;
+  itensChecklist: ItemChecklist[];
+  subpastas: Subpasta[];
 };
 
 const pastasIniciais: Pasta[] = [
-  { id: "materias", nome: "Matérias da faculdade", cor: paletaCores[0] },
-  { id: "empresa-junior", nome: "Empresa júnior", cor: paletaCores[1] },
-  { id: "projetos", nome: "Projetos", cor: paletaCores[2] },
+  { id: "materias", nome: "Matérias da faculdade", cor: paletaCores[0], tituloChecklist: "Checklist", itensChecklist: [], subpastas: [] },
+  { id: "empresa-junior", nome: "Empresa júnior", cor: paletaCores[1], tituloChecklist: "Checklist", itensChecklist: [], subpastas: [] },
+  { id: "projetos", nome: "Projetos", cor: paletaCores[2], tituloChecklist: "Checklist", itensChecklist: [], subpastas: [] },
 ];
 
 const CHAVE_STORAGE = "projeto-luiza:pastas";
@@ -27,6 +41,13 @@ type PastaContextType = {
   mudarCorPasta: (id: string, novaCor: string) => void;
   excluirPasta: (id: string) => void;
   reordenarPastas: (novaOrdem: Pasta[]) => void;
+  adicionarItemChecklist: (pastaId: string, texto: string) => void;
+  alternarItemChecklist: (pastaId: string, itemId: string) => void;
+  removerItemChecklist: (pastaId: string, itemId: string) => void;
+  renomearTituloChecklist: (pastaId: string, novoTitulo: string) => void;
+  criarSubpasta: (pastaId: string, nome: string) => void;
+  renomearSubpasta: (pastaId: string, subpastaId: string, novoNome: string) => void;
+  excluirSubpasta: (pastaId: string, subpastaId: string) => void;
 };
 
 const PastaContext = createContext<PastaContextType | undefined>(undefined);
@@ -40,7 +61,16 @@ export function PastaProvider({ children }: { children: ReactNode }) {
     const salvas = localStorage.getItem(CHAVE_STORAGE);
     if (salvas) {
       try {
-        setPastas(JSON.parse(salvas));
+        const dados = JSON.parse(salvas);
+        // Garante que pastas salvas antes desses campos existirem ganhem os valores padrão
+        setPastas(
+          dados.map((p: Pasta) => ({
+            ...p,
+            itensChecklist: p.itensChecklist ?? [],
+            tituloChecklist: p.tituloChecklist ?? "Checklist",
+            subpastas: p.subpastas ?? [],
+          }))
+        );
       } catch {
         // se o dado salvo estiver corrompido, ignora e mantém as iniciais
       }
@@ -67,7 +97,14 @@ export function PastaProvider({ children }: { children: ReactNode }) {
   const criarPasta = useCallback((nome: string, cor?: string) => {
     setPastas((atual) => [
       ...atual,
-      { id: `${Date.now()}`, nome, cor: cor ?? paletaCores[atual.length % paletaCores.length] },
+      {
+        id: `${Date.now()}`,
+        nome,
+        cor: cor ?? paletaCores[atual.length % paletaCores.length],
+        tituloChecklist: "Checklist",
+        itensChecklist: [],
+        subpastas: [],
+      },
     ]);
   }, []);
 
@@ -88,6 +125,73 @@ export function PastaProvider({ children }: { children: ReactNode }) {
     setPastas(novaOrdem);
   }, []);
 
+  const adicionarItemChecklist = useCallback((pastaId: string, texto: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? { ...p, itensChecklist: [...p.itensChecklist, { id: `${Date.now()}`, texto, concluido: false }] }
+          : p
+      )
+    );
+  }, []);
+
+  const alternarItemChecklist = useCallback((pastaId: string, itemId: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? {
+              ...p,
+              itensChecklist: p.itensChecklist.map((item) =>
+                item.id === itemId ? { ...item, concluido: !item.concluido } : item
+              ),
+            }
+          : p
+      )
+    );
+  }, []);
+
+  const removerItemChecklist = useCallback((pastaId: string, itemId: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? { ...p, itensChecklist: p.itensChecklist.filter((item) => item.id !== itemId) }
+          : p
+      )
+    );
+  }, []);
+
+  const renomearTituloChecklist = useCallback((pastaId: string, novoTitulo: string) => {
+    setPastas((atual) => atual.map((p) => (p.id === pastaId ? { ...p, tituloChecklist: novoTitulo } : p)));
+  }, []);
+
+  const criarSubpasta = useCallback((pastaId: string, nome: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? { ...p, subpastas: [...p.subpastas, { id: `${Date.now()}`, nome }] }
+          : p
+      )
+    );
+  }, []);
+
+  const renomearSubpasta = useCallback((pastaId: string, subpastaId: string, novoNome: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? { ...p, subpastas: p.subpastas.map((s) => (s.id === subpastaId ? { ...s, nome: novoNome } : s)) }
+          : p
+      )
+    );
+  }, []);
+
+  const excluirSubpasta = useCallback((pastaId: string, subpastaId: string) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId ? { ...p, subpastas: p.subpastas.filter((s) => s.id !== subpastaId) } : p
+      )
+    );
+  }, []);
+
   return (
     <PastaContext.Provider
       value={{
@@ -100,6 +204,13 @@ export function PastaProvider({ children }: { children: ReactNode }) {
         mudarCorPasta,
         excluirPasta,
         reordenarPastas,
+        adicionarItemChecklist,
+        alternarItemChecklist,
+        removerItemChecklist,
+        renomearTituloChecklist,
+        criarSubpasta,
+        renomearSubpasta,
+        excluirSubpasta,
       }}
     >
       {children}
