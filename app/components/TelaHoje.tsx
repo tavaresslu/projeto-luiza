@@ -5,6 +5,7 @@ import { cores, hexParaRgba } from "../theme";
 import { ordenarPorHorario } from "../utils";
 import { useCalendario } from "../context/CalendarioContext";
 import { usePasta } from "../context/PastaContext";
+import PainelHabitos from "./PainelHabitos";
 
 // O JavaScript conta janeiro como 0 (new Date().getMonth()).
 // Se os seus eventos guardam o mês de 1 a 12, troque este valor para 1.
@@ -163,6 +164,11 @@ export default function TelaHoje() {
             </div>
           )}
         </section>
+
+        {/* Hábitos: ocupa a largura toda embaixo dos dois cards */}
+        <div className="md:col-span-2">
+          <PainelHabitos />
+        </div>
       </div>
 
       {/* Atalhos para as pastas */}

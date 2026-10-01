@@ -1,5 +1,6 @@
 import { CalendarioProvider } from "./context/CalendarioContext";
 import { PastaProvider } from "./context/PastaContext";
+import { HabitosProvider } from "./context/HabitosContext";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <CalendarioProvider>
-          <PastaProvider>{children}</PastaProvider>
+          <PastaProvider>
+            <HabitosProvider>{children}</HabitosProvider>
+          </PastaProvider>
         </CalendarioProvider>
       </body>
     </html>
