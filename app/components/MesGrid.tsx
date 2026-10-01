@@ -2,7 +2,8 @@
 
 import { cores, hexParaRgba, hexEscurecer } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
-import { ordenarPorHorario } from "../utils";
+import { usePasta } from "../context/PastaContext";
+import { ordenarPorHorario, itemNoDia } from "../utils";
 
 type Props = {
   mes: number;
@@ -15,6 +16,8 @@ type Props = {
 
 export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onClickDia, onClickEvento }: Props) {
   const { eventos, etiquetas } = useCalendario();
+  // Pastas e itens de checklist (pra mostrar no calendário os itens que têm data)
+  const { pastas, alternarItemChecklist } = usePasta();
 
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
@@ -42,12 +45,19 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
       .filter((e) => e.dia === dia && e.mes === mes && e.ano === ano)
       .sort(ordenarPorHorario);
 
+    // Itens de checklist de TODAS as pastas que têm a data deste dia
+    const itensDoDia = pastas.flatMap((pasta) =>
+      pasta.itensChecklist
+        .filter((item) => itemNoDia(item, dia, mes, ano))
+        .map((item) => ({ item, pasta }))
+    );
+
     // Domingo = 0, sábado = 6 — mesma convenção do JS Date usada no resto do arquivo
     const diaSemana = new Date(ano, mes, dia).getDay();
     const ehFimDeSemana = diaSemana === 0 || diaSemana === 6;
 
     if (tamanho === "grande") {
-      const temMais = eventosDoDia.length > 2;
+      const temMais = eventosDoDia.length + itensDoDia.length > 2;
       celulas.push(
         <button
           key={dia}
@@ -79,24 +89,65 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
                 {e.horario ? `${e.horario} ` : ""}{e.titulo}
               </span>
             ))}
+
+            {/* Tarefas do checklist com prazo neste dia (cor da pasta) */}
+            {itensDoDia.map(({ item, pasta }) => (
+              <span
+                key={`${pasta.id}-${item.id}`}
+                role="button"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  alternarItemChecklist(pasta.id, item.id);
+                }}
+                className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-bold hover:opacity-80"
+                style={{
+                  backgroundColor: hexParaRgba(pasta.cor, 0.16),
+                  color: hexEscurecer(pasta.cor, 0.35),
+                  border: `1px dashed ${pasta.cor}`,
+                  textDecoration: item.concluido ? "line-through" : "none",
+                  opacity: item.concluido ? 0.6 : 1,
+                }}
+                title={`${pasta.nome}: clique para marcar como concluído`}
+              >
+                {item.concluido ? "☑" : "☐"} {item.texto}
+              </span>
+            ))}
           </div>
         </button>
       );
     } else {
       const tamanhoCirculo = tamanho === "mini" ? "h-7 w-7 text-xs" : "h-7 w-7 text-[11px]";
       const temEvento = eventosDoDia.length > 0;
+      const temItem = itensDoDia.length > 0;
+      const temMarcacao = temEvento || temItem;
+
+      // Evento tem prioridade na cor; se só tiver tarefa, usa a cor da pasta
+      const corFundo = temEvento
+        ? fundoDaEtiqueta(eventosDoDia[0].etiquetaId)
+        : temItem
+        ? hexParaRgba(itensDoDia[0].pasta.cor, 0.16)
+        : ehFimDeSemana
+        ? cores.fundoFimDeSemana
+        : "transparent";
+
+      const corTexto = temEvento
+        ? textoDaEtiqueta(eventosDoDia[0].etiquetaId)
+        : temItem
+        ? hexEscurecer(itensDoDia[0].pasta.cor, 0.35)
+        : cores.textoPrincipal;
+
+      // Ao passar o mouse, mostra o nome das tarefas do dia
+      const dicaTarefas = itensDoDia.map(({ item }) => item.texto).join(", ");
+
       celulas.push(
         <button
           key={dia}
           onClick={() => onClickDia(dia, mes, ano)}
-          className={`relative flex ${tamanhoCirculo} items-center justify-center rounded-full ${temEvento ? "font-bold" : "font-medium"}`}
+          title={dicaTarefas || undefined}
+          className={`relative flex ${tamanhoCirculo} items-center justify-center rounded-full ${temMarcacao ? "font-bold" : "font-medium"}`}
           style={{
-            color: temEvento ? textoDaEtiqueta(eventosDoDia[0].etiquetaId) : cores.textoPrincipal,
-            backgroundColor: temEvento
-              ? fundoDaEtiqueta(eventosDoDia[0].etiquetaId)
-              : ehFimDeSemana
-              ? cores.fundoFimDeSemana
-              : "transparent",
+            color: corTexto,
+            backgroundColor: corFundo,
           }}
         >
           {dia}

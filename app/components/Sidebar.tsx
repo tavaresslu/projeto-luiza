@@ -6,18 +6,30 @@ import SeletorCor from "./SeletorCor";
 import { cores, hexParaRgba } from "../theme";
 import { paletaCores } from "./SeletorCor";
 import { usePasta } from "../context/PastaContext";
+import { useCalendario } from "../context/CalendarioContext";
 
 export default function Sidebar() {
   const {
     pastas,
     pastaSelecionada,
     selecionarPasta,
+    fecharPasta,
     criarPasta,
     renomearPasta,
     mudarCorPasta,
     excluirPasta,
     reordenarPastas,
   } = usePasta();
+
+  const { expandido, setExpandido } = useCalendario();
+
+  // A tela Hoje é o que aparece quando não há pasta aberta nem calendário expandido
+  const emTelaHoje = !pastaSelecionada && !expandido;
+
+  function irParaHoje() {
+    fecharPasta();
+    setExpandido(false);
+  }
 
   const [menuAbertoId, setMenuAbertoId] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -98,6 +110,17 @@ export default function Sidebar() {
       </div>
 
       <MiniCalendar />
+
+      <button
+        onClick={irParaHoje}
+        className="rounded-xl px-3 py-2 text-left text-sm font-medium"
+        style={{
+          backgroundColor: emTelaHoje ? hexParaRgba(cores.textoPrincipal, 0.08) : "transparent",
+          color: cores.textoPrincipal,
+        }}
+      >
+        Hoje
+      </button>
 
       <div className="flex-1 overflow-y-auto">
         <div className="mb-2 flex items-center justify-between">

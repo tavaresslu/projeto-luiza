@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import CalendarioExpandido from "./components/CalendarioExpandido";
 import PainelPasta from "./components/PainelPasta";
+import TelaHoje from "./components/TelaHoje";
 import { cores } from "./theme";
 import { useCalendario } from "./context/CalendarioContext";
 import { usePasta } from "./context/PastaContext";
@@ -30,11 +31,8 @@ export default function Home() {
 
         {!expandido && pastaSelecionada && <PainelPasta />}
 
-        {!expandido && !pastaSelecionada && (
-          <h1 className="text-lg font-medium" style={{ color: cores.textoPrincipal }}>
-            Área principal
-          </h1>
-        )}
+        {/* Sem calendário expandido e sem pasta aberta = tela Hoje */}
+        {!expandido && !pastaSelecionada && <TelaHoje />}
       </main>
     </div>
   );

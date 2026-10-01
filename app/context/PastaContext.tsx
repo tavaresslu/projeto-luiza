@@ -2,11 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { paletaCores } from "../components/SeletorCor";
+import { DataItem } from "../utils";
 
+// dia, mes e ano são opcionais: itens antigos (sem data) continuam funcionando normalmente
 type ItemChecklist = {
   id: string;
   texto: string;
   concluido: boolean;
+  dia?: number;
+  mes?: number;
+  ano?: number;
 };
 
 type Subpasta = {
@@ -44,6 +49,7 @@ type PastaContextType = {
   adicionarItemChecklist: (pastaId: string, texto: string) => void;
   alternarItemChecklist: (pastaId: string, itemId: string) => void;
   removerItemChecklist: (pastaId: string, itemId: string) => void;
+  definirDataItem: (pastaId: string, itemId: string, data: DataItem | null) => void;
   renomearTituloChecklist: (pastaId: string, novoTitulo: string) => void;
   criarSubpasta: (pastaId: string, nome: string) => void;
   renomearSubpasta: (pastaId: string, subpastaId: string, novoNome: string) => void;
@@ -160,6 +166,24 @@ export function PastaProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  // Define (ou remove, se data for null) a data de um item do checklist
+  const definirDataItem = useCallback((pastaId: string, itemId: string, data: DataItem | null) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? {
+              ...p,
+              itensChecklist: p.itensChecklist.map((item) =>
+                item.id === itemId
+                  ? { ...item, dia: data?.dia, mes: data?.mes, ano: data?.ano }
+                  : item
+              ),
+            }
+          : p
+      )
+    );
+  }, []);
+
   const renomearTituloChecklist = useCallback((pastaId: string, novoTitulo: string) => {
     setPastas((atual) => atual.map((p) => (p.id === pastaId ? { ...p, tituloChecklist: novoTitulo } : p)));
   }, []);
@@ -207,6 +231,7 @@ export function PastaProvider({ children }: { children: ReactNode }) {
         adicionarItemChecklist,
         alternarItemChecklist,
         removerItemChecklist,
+        definirDataItem,
         renomearTituloChecklist,
         criarSubpasta,
         renomearSubpasta,

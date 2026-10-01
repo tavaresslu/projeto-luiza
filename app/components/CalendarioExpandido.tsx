@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { cores, hexParaRgba, hexEscurecer } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
-import { ordenarPorHorario } from "../utils";
+import { usePasta } from "../context/PastaContext";
+import { ordenarPorHorario, itemNoDia } from "../utils";
 import { Evento } from "../types";
 import MesGrid from "./MesGrid";
 import PainelNovoEvento from "./PainelNovoEvento";
@@ -101,6 +102,8 @@ function ehFimDeSemana(d: Date) {
 export default function CalendarioExpandido() {
   const { dataAtual, mudarMes, eventos, etiquetas, visualizacao, setVisualizacao, setExpandido } =
     useCalendario();
+  // Pastas e itens de checklist (pra mostrar no calendário os itens que têm data)
+  const { pastas, alternarItemChecklist } = usePasta();
 
   const [diaSelecionado, setDiaSelecionado] = useState<{ dia: number; mes: number; ano: number } | null>(null);
   const [eventoSelecionadoId, setEventoSelecionadoId] = useState<string | undefined>(undefined);
@@ -120,6 +123,15 @@ export default function CalendarioExpandido() {
   // Versão escurecida da mesma cor, pro texto ficar legível em cima do fundo claro
   function textoDaEtiqueta(id: string) {
     return hexEscurecer(corDaEtiqueta(id), 0.35);
+  }
+
+  // Junta os itens de checklist de TODAS as pastas que têm a data do dia pedido
+  function itensChecklistDoDia(d: Date) {
+    return pastas.flatMap((pasta) =>
+      pasta.itensChecklist
+        .filter((item) => itemNoDia(item, d.getDate(), d.getMonth(), d.getFullYear()))
+        .map((item) => ({ item, pasta }))
+    );
   }
 
   function abrirDia(dia: number, mesDia: number, anoDia: number) {
@@ -219,6 +231,7 @@ export default function CalendarioExpandido() {
                 const semHorario = eventos.filter(
                   (e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear() && !e.horario
                 );
+                const itensDoDia = itensChecklistDoDia(d);
                 return (
                   <div
                     key={`semhora-${d.toISOString()}`}
@@ -233,6 +246,25 @@ export default function CalendarioExpandido() {
                         style={{ backgroundColor: fundoDaEtiqueta(e.etiquetaId), color: textoDaEtiqueta(e.etiquetaId) }}
                       >
                         {e.titulo}
+                      </button>
+                    ))}
+
+                    {/* Itens de checklist com prazo neste dia (cor da pasta) */}
+                    {itensDoDia.map(({ item, pasta }) => (
+                      <button
+                        key={`${pasta.id}-${item.id}`}
+                        onClick={() => alternarItemChecklist(pasta.id, item.id)}
+                        className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-bold hover:opacity-80"
+                        style={{
+                          backgroundColor: hexParaRgba(pasta.cor, 0.16),
+                          color: hexEscurecer(pasta.cor, 0.35),
+                          border: `1px dashed ${pasta.cor}`,
+                          textDecoration: item.concluido ? "line-through" : "none",
+                          opacity: item.concluido ? 0.6 : 1,
+                        }}
+                        title={`${pasta.nome}: clique para marcar como concluído`}
+                      >
+                        {item.concluido ? "☑" : "☐"} {item.texto}
                       </button>
                     ))}
                   </div>
