@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { cores, hexParaRgba } from "../theme";
 import { usePasta } from "../context/PastaContext";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../lib/superbaseClient";
 
 // Opacidades diferentes pra dar variedade visual aos "balões", mesmo todos usando a cor da pasta
 const OPACIDADES_CARD = [0.55, 0.35, 0.7, 0.45, 0.6, 0.3];
@@ -285,7 +285,7 @@ export default function PainelPasta() {
                               {c.valor}
                             </span>
                           ) : (
-                            
+                            <a
                               href={c.valor}
                               target="_blank"
                               rel="noopener noreferrer"
