@@ -3,7 +3,11 @@
 import { cores, hexParaRgba, hexEscurecer } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
 import { usePasta } from "../context/PastaContext";
+import { useHabitos, dataParaChave } from "../context/HabitosContext";
 import { ordenarPorHorario, itemNoDia } from "../utils";
+
+// Cor das marcações de hábitos no calendário
+const COR_HABITOS = "#6FBF8E";
 
 type Props = {
   mes: number;
@@ -18,6 +22,8 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
   const { eventos, etiquetas } = useCalendario();
   // Pastas e itens de checklist (pra mostrar no calendário os itens que têm data)
   const { pastas, alternarItemChecklist } = usePasta();
+  // Hábitos (pra marcar os dias em que foram cumpridos)
+  const { habitos } = useHabitos();
 
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
@@ -52,12 +58,17 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
         .map((item) => ({ item, pasta }))
     );
 
+    // Quantos hábitos foram cumpridos neste dia
+    const chaveDia = dataParaChave(new Date(ano, mes, dia));
+    const habitosFeitos = habitos.filter((h) => h.diasFeitos.includes(chaveDia)).length;
+    const todosHabitos = habitos.length > 0 && habitosFeitos === habitos.length;
+
     // Domingo = 0, sábado = 6 — mesma convenção do JS Date usada no resto do arquivo
     const diaSemana = new Date(ano, mes, dia).getDay();
     const ehFimDeSemana = diaSemana === 0 || diaSemana === 6;
 
     if (tamanho === "grande") {
-      const temMais = eventosDoDia.length + itensDoDia.length > 2;
+      const temMais = eventosDoDia.length + itensDoDia.length + (habitosFeitos > 0 ? 1 : 0) > 2;
       celulas.push(
         <button
           key={dia}
@@ -112,6 +123,20 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
                 {item.concluido ? "☑" : "☐"} {item.texto}
               </span>
             ))}
+
+            {/* Hábitos cumpridos neste dia */}
+            {habitosFeitos > 0 && (
+              <span
+                className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-bold"
+                style={{
+                  backgroundColor: hexParaRgba(COR_HABITOS, todosHabitos ? 0.28 : 0.1),
+                  color: hexEscurecer(COR_HABITOS, 0.35),
+                }}
+                title="Hábitos cumpridos neste dia"
+              >
+                {todosHabitos ? "✓ hábitos" : `${habitosFeitos}/${habitos.length} hábitos`}
+              </span>
+            )}
           </div>
         </button>
       );
@@ -136,14 +161,19 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
         ? hexEscurecer(itensDoDia[0].pasta.cor, 0.35)
         : cores.textoPrincipal;
 
-      // Ao passar o mouse, mostra o nome das tarefas do dia
-      const dicaTarefas = itensDoDia.map(({ item }) => item.texto).join(", ");
+      // Ao passar o mouse, mostra o nome das tarefas do dia e se os hábitos foram cumpridos
+      const dica = [
+        itensDoDia.map(({ item }) => item.texto).join(", "),
+        todosHabitos ? "Todos os hábitos cumpridos" : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
       celulas.push(
         <button
           key={dia}
           onClick={() => onClickDia(dia, mes, ano)}
-          title={dicaTarefas || undefined}
+          title={dica || undefined}
           className={`relative flex ${tamanhoCirculo} items-center justify-center rounded-full ${temMarcacao ? "font-bold" : "font-medium"}`}
           style={{
             color: corTexto,
@@ -151,6 +181,14 @@ export default function MesGrid({ mes, ano, tamanho, mostrarTitulo = true, onCli
           }}
         >
           {dia}
+
+          {/* Pontinho verde: todos os hábitos cumpridos neste dia */}
+          {todosHabitos && (
+            <span
+              className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+              style={{ backgroundColor: COR_HABITOS }}
+            />
+          )}
         </button>
       );
     }

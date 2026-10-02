@@ -6,6 +6,8 @@ import { ordenarPorHorario } from "../utils";
 import { useCalendario } from "../context/CalendarioContext";
 import { usePasta } from "../context/PastaContext";
 import PainelHabitos from "./PainelHabitos";
+import PainelMetas from "./PainelMetas";
+import ResumoSemana from "./ResumoSemana";
 
 // O JavaScript conta janeiro como 0 (new Date().getMonth()).
 // Se os seus eventos guardam o mês de 1 a 12, troque este valor para 1.
@@ -165,7 +167,17 @@ export default function TelaHoje() {
           )}
         </section>
 
-        {/* Hábitos: ocupa a largura toda embaixo dos dois cards */}
+        {/* Resumo da semana: ocupa a largura toda */}
+        <div className="md:col-span-2">
+          <ResumoSemana hoje={hoje} />
+        </div>
+
+        {/* Metas: ocupa a largura toda */}
+        <div className="md:col-span-2">
+          <PainelMetas />
+        </div>
+
+        {/* Hábitos: ocupa a largura toda embaixo das metas */}
         <div className="md:col-span-2">
           <PainelHabitos />
         </div>

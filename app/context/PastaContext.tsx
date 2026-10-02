@@ -4,7 +4,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { paletaCores } from "../components/SeletorCor";
 import { DataItem } from "../utils";
 
-// dia, mes e ano são opcionais: itens antigos (sem data) continuam funcionando normalmente
+// dia, mes e ano são opcionais: itens antigos (sem data) continuam funcionando normalmente.
+// etapas e etapasFeitas também: sem etapas, a tarefa é simples (feita ou não feita).
 type ItemChecklist = {
   id: string;
   texto: string;
@@ -12,6 +13,8 @@ type ItemChecklist = {
   dia?: number;
   mes?: number;
   ano?: number;
+  etapas?: number;
+  etapasFeitas?: number;
 };
 
 type Subpasta = {
@@ -48,6 +51,8 @@ type PastaContextType = {
   reordenarPastas: (novaOrdem: Pasta[]) => void;
   adicionarItemChecklist: (pastaId: string, texto: string) => void;
   alternarItemChecklist: (pastaId: string, itemId: string) => void;
+  mudarEtapaItem: (pastaId: string, itemId: string, delta: 1 | -1) => void;
+  definirEtapasItem: (pastaId: string, itemId: string, etapas: number | null) => void;
   removerItemChecklist: (pastaId: string, itemId: string) => void;
   definirDataItem: (pastaId: string, itemId: string, data: DataItem | null) => void;
   renomearTituloChecklist: (pastaId: string, novoTitulo: string) => void;
@@ -141,15 +146,79 @@ export function PastaProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  // Marca/desmarca a tarefa inteira (usado pelo calendário e pela tela inicial).
+  // Se a tarefa tem etapas, marcar completa todas e desmarcar zera.
   const alternarItemChecklist = useCallback((pastaId: string, itemId: string) => {
     setPastas((atual) =>
       atual.map((p) =>
         p.id === pastaId
           ? {
               ...p,
-              itensChecklist: p.itensChecklist.map((item) =>
-                item.id === itemId ? { ...item, concluido: !item.concluido } : item
-              ),
+              itensChecklist: p.itensChecklist.map((item) => {
+                if (item.id !== itemId) return item;
+                if (item.etapas) {
+                  return {
+                    ...item,
+                    concluido: !item.concluido,
+                    etapasFeitas: item.concluido ? 0 : item.etapas,
+                  };
+                }
+                return { ...item, concluido: !item.concluido };
+              }),
+            }
+          : p
+      )
+    );
+  }, []);
+
+  // Avança (delta = 1) ou volta (delta = -1) uma etapa da tarefa.
+  // Tarefa sem etapas: o clique só marca/desmarca. Depois da última etapa, volta pra zero.
+  const mudarEtapaItem = useCallback((pastaId: string, itemId: string, delta: 1 | -1) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? {
+              ...p,
+              itensChecklist: p.itensChecklist.map((item) => {
+                if (item.id !== itemId) return item;
+
+                if (!item.etapas) {
+                  return delta === 1 ? { ...item, concluido: !item.concluido } : item;
+                }
+
+                const feitas = item.etapasFeitas ?? 0;
+                let proxima = feitas + delta;
+                if (proxima > item.etapas) proxima = 0;
+                if (proxima < 0) proxima = 0;
+
+                return { ...item, etapasFeitas: proxima, concluido: proxima >= item.etapas };
+              }),
+            }
+          : p
+      )
+    );
+  }, []);
+
+  // Define em quantas etapas a tarefa é dividida (2 a 20). Com null ou menos de 2, volta a ser tarefa simples.
+  const definirEtapasItem = useCallback((pastaId: string, itemId: string, etapas: number | null) => {
+    setPastas((atual) =>
+      atual.map((p) =>
+        p.id === pastaId
+          ? {
+              ...p,
+              itensChecklist: p.itensChecklist.map((item) => {
+                if (item.id !== itemId) return item;
+
+                if (etapas === null || etapas < 2) {
+                  return { ...item, etapas: undefined, etapasFeitas: undefined };
+                }
+
+                const total = Math.min(Math.floor(etapas), 20);
+                const feitasAntes = item.etapasFeitas ?? (item.concluido ? total : 0);
+                const feitas = Math.min(feitasAntes, total);
+
+                return { ...item, etapas: total, etapasFeitas: feitas, concluido: feitas >= total };
+              }),
             }
           : p
       )
@@ -230,6 +299,8 @@ export function PastaProvider({ children }: { children: ReactNode }) {
         reordenarPastas,
         adicionarItemChecklist,
         alternarItemChecklist,
+        mudarEtapaItem,
+        definirEtapasItem,
         removerItemChecklist,
         definirDataItem,
         renomearTituloChecklist,

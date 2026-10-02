@@ -6,6 +6,7 @@ import { cores, hexParaRgba } from "../theme";
 import { usePasta } from "../context/PastaContext";
 import { supabase } from "../lib/superbaseClient";
 import { dataParaInput, inputParaData, statusDoPrazo, temData } from "../utils";
+import AnelTarefa from "./AnelTarefa";
 
 // Opacidades bem suaves do fundo dos cards, pra dar um pouco de variedade
 const OPACIDADES_CARD = [0.2, 0.12, 0.28, 0.16, 0.24, 0.1];
@@ -23,7 +24,8 @@ export default function PainelPasta() {
     pastaSelecionada,
     fecharPasta,
     adicionarItemChecklist,
-    alternarItemChecklist,
+    mudarEtapaItem,
+    definirEtapasItem,
     removerItemChecklist,
     definirDataItem,
     renomearTituloChecklist,
@@ -82,7 +84,6 @@ export default function PainelPasta() {
 
   const total = pastaSelecionada.itensChecklist.length;
   const concluidos = pastaSelecionada.itensChecklist.filter((i) => i.concluido).length;
-  const progresso = total === 0 ? 0 : (concluidos / total) * 100;
   const subpastaAberta = pastaSelecionada.subpastas.find((s) => s.id === subpastaAbertaId) ?? null;
   const hoje = new Date();
 
@@ -289,13 +290,6 @@ export default function PainelPasta() {
             {total === 0 ? "Nenhum item ainda" : `${concluidos} de ${total} concluídos`}
           </p>
 
-          <div className="mb-1 h-[3px] overflow-hidden rounded-full" style={{ backgroundColor: cores.borda }}>
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progresso}%`, backgroundColor: pastaSelecionada.cor }}
-            />
-          </div>
-
           <div className="my-4 flex items-center gap-3">
             <input
               value={novoItemTexto}
@@ -320,63 +314,85 @@ export default function PainelPasta() {
           <ul>
             {pastaSelecionada.itensChecklist.map((item, i) => {
               const atrasado = !item.concluido && statusDoPrazo(item, hoje) === "atrasada";
+              // A linha da data e das etapas fica sempre visível se o item já tem algum dos dois;
+              // senão, só aparece ao passar o mouse
+              const mostrarLinhaExtra = temData(item) || !!item.etapas;
 
               return (
                 <li
                   key={item.id}
-                  className="group flex items-center gap-2 py-2.5"
+                  className="group py-2.5"
                   style={{
                     borderBottom:
                       i < pastaSelecionada.itensChecklist.length - 1 ? `1px solid ${cores.borda}` : "none",
                   }}
                 >
-                  <button
-                    onClick={() => alternarItemChecklist(pastaSelecionada.id, item.id)}
-                    className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] transition-colors"
-                    style={{
-                      border: `1.3px solid ${cores.borda}`,
-                      backgroundColor: item.concluido ? hexParaRgba(pastaSelecionada.cor, 0.35) : "transparent",
-                    }}
-                  >
-                    {item.concluido && (
-                      <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4L3.5 6.5L9 1" stroke={cores.textoPrincipal} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Anel de progresso da tarefa */}
+                    <AnelTarefa
+                      etapas={item.etapas}
+                      etapasFeitas={item.etapasFeitas}
+                      concluido={item.concluido}
+                      cor={pastaSelecionada.cor}
+                      onAvancar={() => mudarEtapaItem(pastaSelecionada.id, item.id, 1)}
+                      onVoltar={() => mudarEtapaItem(pastaSelecionada.id, item.id, -1)}
+                    />
 
-                  <span
-                    className="min-w-0 flex-1 text-sm transition-colors"
-                    style={{
-                      color: item.concluido ? cores.textoSecundario : cores.textoPrincipal,
-                      textDecoration: item.concluido ? "line-through" : "none",
-                    }}
-                  >
-                    {item.texto}
-                  </span>
+                    <span
+                      className="min-w-0 flex-1 text-sm transition-colors"
+                      style={{
+                        color: item.concluido ? cores.textoSecundario : cores.textoPrincipal,
+                        textDecoration: item.concluido ? "line-through" : "none",
+                      }}
+                    >
+                      {item.texto}
+                    </span>
 
-                  {/* Data do item: some se estiver vazia, aparece ao passar o mouse */}
-                  <input
-                    type="date"
-                    value={dataParaInput(item)}
-                    onChange={(e) =>
-                      definirDataItem(pastaSelecionada.id, item.id, inputParaData(e.target.value))
-                    }
-                    title="Definir data"
-                    className={`w-[104px] shrink-0 bg-transparent text-[10px] outline-none transition-opacity ${
-                      temData(item) ? "opacity-100" : "opacity-0 focus:opacity-100 group-hover:opacity-100"
+                    <button
+                      onClick={() => removerItemChecklist(pastaSelecionada.id, item.id)}
+                      className="hidden text-sm opacity-40 transition-opacity hover:opacity-100 group-hover:block"
+                      style={{ color: cores.textoSecundario }}
+                      title="Remover item"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Linha com a data e o número de etapas da tarefa */}
+                  <div
+                    className={`mt-1 items-center gap-3 pl-[42px] ${
+                      mostrarLinhaExtra ? "flex" : "hidden group-hover:flex focus-within:flex"
                     }`}
-                    style={{ color: atrasado ? "#E76F51" : cores.textoSecundario }}
-                  />
-
-                  <button
-                    onClick={() => removerItemChecklist(pastaSelecionada.id, item.id)}
-                    className="hidden text-sm opacity-40 transition-opacity hover:opacity-100 group-hover:block"
-                    style={{ color: cores.textoSecundario }}
-                    title="Remover item"
                   >
-                    ×
-                  </button>
+                    <input
+                      type="date"
+                      value={dataParaInput(item)}
+                      onChange={(e) =>
+                        definirDataItem(pastaSelecionada.id, item.id, inputParaData(e.target.value))
+                      }
+                      title="Definir data"
+                      className="w-[104px] shrink-0 bg-transparent text-[10px] outline-none"
+                      style={{ color: atrasado ? "#E76F51" : cores.textoSecundario }}
+                    />
+
+                    <input
+                      type="number"
+                      min={2}
+                      max={20}
+                      value={item.etapas ?? ""}
+                      onChange={(e) =>
+                        definirEtapasItem(
+                          pastaSelecionada.id,
+                          item.id,
+                          e.target.value === "" ? null : Number(e.target.value)
+                        )
+                      }
+                      placeholder="etapas"
+                      title="Em quantas etapas esta tarefa é dividida (2 a 20)"
+                      className="w-14 bg-transparent text-[10px] outline-none"
+                      style={{ color: cores.textoSecundario }}
+                    />
+                  </div>
                 </li>
               );
             })}

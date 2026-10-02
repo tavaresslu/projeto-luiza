@@ -4,10 +4,14 @@ import { useState } from "react";
 import { cores, hexParaRgba, hexEscurecer } from "../theme";
 import { useCalendario } from "../context/CalendarioContext";
 import { usePasta } from "../context/PastaContext";
+import { useHabitos, dataParaChave } from "../context/HabitosContext";
 import { ordenarPorHorario, itemNoDia } from "../utils";
 import { Evento } from "../types";
 import MesGrid from "./MesGrid";
 import PainelNovoEvento from "./PainelNovoEvento";
+
+// Cor das marcações de hábitos no calendário
+const COR_HABITOS = "#6FBF8E";
 
 const opcoesVisualizacao = [
   { id: "semana", label: "Semana" },
@@ -104,6 +108,8 @@ export default function CalendarioExpandido() {
     useCalendario();
   // Pastas e itens de checklist (pra mostrar no calendário os itens que têm data)
   const { pastas, alternarItemChecklist } = usePasta();
+  // Hábitos (pra marcar os dias em que foram cumpridos)
+  const { habitos } = useHabitos();
 
   const [diaSelecionado, setDiaSelecionado] = useState<{ dia: number; mes: number; ano: number } | null>(null);
   const [eventoSelecionadoId, setEventoSelecionadoId] = useState<string | undefined>(undefined);
@@ -232,6 +238,12 @@ export default function CalendarioExpandido() {
                   (e) => e.dia === d.getDate() && e.mes === d.getMonth() && e.ano === d.getFullYear() && !e.horario
                 );
                 const itensDoDia = itensChecklistDoDia(d);
+
+                // Quantos hábitos foram cumpridos neste dia
+                const chaveDia = dataParaChave(d);
+                const habitosFeitos = habitos.filter((h) => h.diasFeitos.includes(chaveDia)).length;
+                const todosHabitos = habitos.length > 0 && habitosFeitos === habitos.length;
+
                 return (
                   <div
                     key={`semhora-${d.toISOString()}`}
@@ -267,6 +279,20 @@ export default function CalendarioExpandido() {
                         {item.concluido ? "☑" : "☐"} {item.texto}
                       </button>
                     ))}
+
+                    {/* Hábitos cumpridos neste dia */}
+                    {habitosFeitos > 0 && (
+                      <span
+                        className="truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-bold"
+                        style={{
+                          backgroundColor: hexParaRgba(COR_HABITOS, todosHabitos ? 0.28 : 0.1),
+                          color: hexEscurecer(COR_HABITOS, 0.35),
+                        }}
+                        title="Hábitos cumpridos neste dia"
+                      >
+                        {todosHabitos ? "✓ hábitos" : `${habitosFeitos}/${habitos.length} hábitos`}
+                      </span>
+                    )}
                   </div>
                 );
               })}
